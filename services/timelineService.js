@@ -9,17 +9,18 @@ const prisma = new PrismaClient();
  */
 async function saveTimeline(driverId, dateRange, timeline) {
   try {
-    // 1. Generate all dates in the range and delete existing timeline for all dates
-    const dates = generateDateRange(dateRange.start, dateRange.end);
+    // Extract actual dates from timeline events instead of using dateRange
+    const timelineDates = [
+      ...new Set(timeline.map((event) => event.startTime.split("T")[0])),
+    ];
 
     await prisma.driverTimeline.deleteMany({
       where: {
         driverId: driverId,
-        date: { in: dates },
+        date: { in: timelineDates },
       },
     });
 
-    // 2. Insert new timeline events
     const timelineData = timeline.map((event) => ({
       driverId: driverId,
       date: event.startTime.split("T")[0], // Extract date from ISO string
@@ -31,6 +32,7 @@ async function saveTimeline(driverId, dateRange, timeline) {
       data: timelineData,
     });
   } catch (error) {
+    console.error("Error in saveTimeline:", error);
     throw new Error(`Failed to save timeline: ${error.message}`);
   }
 }
@@ -42,8 +44,15 @@ async function saveTimeline(driverId, dateRange, timeline) {
  */
 async function getTimeline(driverId, dateRange) {
   try {
-    // Generate all dates in the range first
-    const dates = generateDateRange(dateRange.start, dateRange.end);
+    // Generate all dates in the range
+    const dates = [];
+    const currentDate = new Date(dateRange.start);
+    const end = new Date(dateRange.end);
+
+    while (currentDate <= end) {
+      dates.push(currentDate.toISOString().split("T")[0]);
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
 
     // Fetch timeline events for all dates in the range
     const timelineEvents = await prisma.driverTimeline.findMany({
@@ -134,24 +143,6 @@ function timeToMinutes(time) {
 }
 
 /**
- * Generate array of dates between start and end
- * @param {string} startDate - Start date in YYYY-MM-DD format
- * @param {string} endDate - End date in YYYY-MM-DD format
- */
-function generateDateRange(startDate, endDate) {
-  const dates = [];
-  const currentDate = new Date(startDate);
-  const end = new Date(endDate);
-
-  while (currentDate <= end) {
-    dates.push(currentDate.toISOString().split("T")[0]);
-    currentDate.setDate(currentDate.getDate() + 1);
-  }
-
-  return dates;
-}
-
-/**
  * Get timeline summary (total work/rest hours) for a date
  * @param {Array} timeline - Reconstructed timeline for a date
  */
@@ -189,7 +180,6 @@ module.exports = {
   reconstructTimeline,
   calculateDuration,
   timeToMinutes,
-  generateDateRange,
   getTimelineSummary,
   minutesToHours,
 };
