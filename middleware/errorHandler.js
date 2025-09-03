@@ -16,6 +16,30 @@ const errorHandler = (err, req, res, next) => {
     });
   }
 
+  // Handle database timeout errors
+  if (err.code === "P1008") {
+    return res.status(504).json({
+      error: "Database Timeout",
+      message: "The database operation timed out. Please try again later.",
+    });
+  }
+
+  // Handle database connection errors
+  if (err.code === "P1001") {
+    return res.status(503).json({
+      error: "Database Connection Error",
+      message: "Unable to connect to the database. Please try again later.",
+    });
+  }
+
+  // Handle other Prisma client errors
+  if (err.code && err.code.startsWith("P")) {
+    return res.status(500).json({
+      error: "Database Error",
+      message: "A database error occurred. Please try again later.",
+    });
+  }
+
   // Handle validation errors
   if (err.message && err.message.includes("Missing required fields")) {
     return res.status(400).json({
