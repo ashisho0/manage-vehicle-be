@@ -1,0 +1,43 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:../database.sqlite"
+}
+
+model Driver {
+  id            Int      @id @default(autoincrement())
+  name          String   @unique
+  email         String?  @unique
+  phone         String?
+  licenseNumber String?  @unique
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  // Relationship to DriverTimeline
+  timelines DriverTimeline[]
+
+  @@index([name])
+  @@index([isActive])
+}
+
+model DriverTimeline {
+  id        Int      @id @default(autoincrement())
+  driverId  Int // Foreign key to Driver
+  date      String // Date in YYYY-MM-DD format
+  startTime String // Start time in HH:MM format (24-hour)
+  eventType String // "Work" or "Rest" - represents the state AFTER this time
+  createdAt DateTime @default(now())
+
+  // Relationship to Driver
+  driver Driver @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([driverId, date, startTime])
+  @@index([driverId, date])
+  @@index([eventType])
+}
